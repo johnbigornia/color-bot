@@ -1,4 +1,4 @@
-### ⚠️ This project is archived ⚠️
+### ⚠️ The main project is archived ⚠️
 
 ---
 
