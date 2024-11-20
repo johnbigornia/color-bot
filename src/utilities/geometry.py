@@ -156,6 +156,40 @@ class Rectangle:
         """
         return Point(self.left + self.width, self.top + self.height)
 
+    # Existing methods ...
+
+    def point_to_left_side(self, x_offset: int = 3, y_variance: int = 12) -> Point:
+        """
+        Returns a point on the left side of the rectangle with randomness in the y-axis.
+        Args:
+            x_offset: Offset from the left edge inside the rectangle (default 5 pixels).
+            y_variance: Maximum variance in the y-axis (default ±10 pixels).
+        Returns:
+            A Point representing the destination within the rectangle.
+        """
+        x = self.left + x_offset
+        y_center = self.top + self.height // 2
+        y = y_center + np.random.randint(-y_variance, y_variance)
+        return Point(x, y)
+
+    def point_around_center(self, inner_radius: int = 30, outer_radius: int = 80) -> Point:
+        """
+        Returns a point around the center of the rectangle but avoids the exact center.
+        Args:
+            inner_radius: Minimum distance from the center to avoid (default 5 pixels).
+            outer_radius: Maximum distance from the center (default 15 pixels).
+        Returns:
+            A Point representing the destination within the rectangle.
+        """
+        center_x = self.left + self.width // 2
+        center_y = self.top + self.height // 2
+
+        angle = np.random.uniform(0, 2 * np.pi)
+        radius = np.random.uniform(inner_radius, outer_radius)
+        x = int(center_x + radius * np.cos(angle))
+        y = int(center_y + radius * np.sin(angle))
+        return Point(x, y)
+
     def to_dict(self):
         return {
             "left": self.left,
@@ -258,3 +292,44 @@ class RuneLiteObject:
             p: The point to check in the format [x, y].
         """
         return (self._axis == np.array(p)).all(axis=1).any()
+    
+    # Existing methods ...
+
+
+    def point_to_left_side(self, x_offset: int = 5, y_variance: int = 10) -> Point:
+        """
+        Returns a point on the left side of the object with randomness in the y-axis.
+        Args:
+            x_offset: Offset from the left edge inside the object (default 5 pixels).
+            y_variance: Maximum variance in the y-axis (default ±10 pixels).
+        Returns:
+            A Point representing the destination within the object.
+        """
+        if self.rect is None:
+            raise ReferenceError("The RuneLiteObject is missing a reference to the Rectangle it's contained in.")
+
+        x = self._x_min + self.rect.left + x_offset
+        y_center = self._center[1] + self.rect.top
+        y = y_center + np.random.randint(-y_variance, y_variance)
+        return Point(x, y)
+
+    def point_around_center(self, inner_radius: int = 5, outer_radius: int = 15) -> Point:
+        """
+        Returns a point around the center of the object but avoids the exact center.
+        Args:
+            inner_radius: Minimum distance from the center to avoid (default 5 pixels).
+            outer_radius: Maximum distance from the center (default 15 pixels).
+        Returns:
+            A Point representing the destination within the object.
+        """
+        if self.rect is None:
+            raise ReferenceError("The RuneLiteObject is missing a reference to the Rectangle it's contained in.")
+
+        center_x = self._center[0] + self.rect.left
+        center_y = self._center[1] + self.rect.top
+
+        angle = np.random.uniform(0, 2 * np.pi)
+        radius = np.random.uniform(inner_radius, outer_radius)
+        x = int(center_x + radius * np.cos(angle))
+        y = int(center_y + radius * np.sin(angle))
+        return Point(x, y)

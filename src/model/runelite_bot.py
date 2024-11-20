@@ -89,7 +89,7 @@ class RuneLiteWindow(Window):
 class RuneLiteBot(Bot, metaclass=ABCMeta):
     win: RuneLiteWindow = None
 
-    def __init__(self, game_title, bot_title, description, window: Window = RuneLiteWindow("RuneLite")) -> None:
+    def __init__(self, game_title, bot_title, description, window: Window = RuneLiteWindow("RuneLite - rg incarnate")) -> None:
         super().__init__(game_title, bot_title, description, window)
 
     # --- OCR Functions ---
@@ -111,7 +111,7 @@ class RuneLiteBot(Bot, metaclass=ABCMeta):
         Returns:
             True if the player is doing the given action, False otherwise.
         """
-        return ocr.find_text(action, self.win.current_action, ocr.PLAIN_12, clr.GREEN)
+        return ocr.find_text(action, self.win.current_action, ocr.PLAIN_12, clr.BLACK)
 
     def pick_up_loot(self, items: Union[str, List[str]], supress_warning=True) -> bool:
         """

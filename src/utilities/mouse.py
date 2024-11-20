@@ -176,7 +176,6 @@ class Mouse:
             raise ValueError("Invalid mouse speed. Try 'slowest', 'slow', 'medium', 'fast', or 'fastest'.")
         return round(truncated_normal_sample(min, max))
 
-
 if __name__ == "__main__":
     mouse = Mouse()
     from geometry import Point

@@ -10,12 +10,14 @@ styles, this class should be abstracted, then extended for each interface style.
 import time
 from typing import List
 
+import cv2
 import pywinctl
 from deprecated import deprecated
 
 import utilities.debug as debug
 import utilities.imagesearch as imsearch
 from utilities.geometry import Point, Rectangle
+from PIL import Image
 
 
 class WindowInitializationError(Exception):
@@ -78,6 +80,7 @@ class Window:
     def _get_window(self):
         self._client = pywinctl.getWindowsWithTitle(self.window_title)
         if self._client:
+            print(str(self._client[0]) + "-----------------------------")
             return self._client[0]
         else:
             raise WindowInitializationError("No client window found.")
@@ -130,10 +133,15 @@ class Window:
         """
         start_time = time.time()
         client_rect = self.rectangle()
+        self.capture_region(client_rect, "client_rect.png")
         a = self.__locate_minimap(client_rect)
+        self.capture_region(self.minimap_area, "minimap.png")
         b = self.__locate_chat(client_rect)
+        self.capture_region(self.chat, "chat.png")
         c = self.__locate_control_panel(client_rect)
+        self.capture_region(self.control_panel, "control_panel.png")
         d = self.__locate_game_view(client_rect)
+        self.capture_region(self.game_view, "game_view.png")
         if all([a, b, c, d]):  # if all templates found
             print(f"Window.initialize() took {time.time() - start_time} seconds.")
             return True
@@ -147,7 +155,8 @@ class Window:
         Returns:
             True if successful, False otherwise.
         """
-        if chat := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "chat.png"), client_rect):
+
+        if chat := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "chat.png"), client_rect, confidence=60):
             # Locate chat tabs
             self.chat_tabs = []
             x, y = 5, 143
@@ -167,7 +176,7 @@ class Window:
         Returns:
             True if successful, False otherwise.
         """
-        if cp := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "inv.png"), client_rect):
+        if cp := imsearch.search_img_in_rect(imsearch.BOT_IMAGES.joinpath("ui_templates", "inventory.png"), client_rect, confidence=60):
             self.__locate_cp_tabs(cp)
             self.__locate_inv_slots(cp)
             self.__locate_prayers(cp)
@@ -317,12 +326,39 @@ class Window:
             # Take a bite out of the bottom-left corner of the minimap to exclude orb's green numbers
             self.minimap.subtract_list = [{"left": 0, "top": self.minimap.height - 20, "width": 20, "height": 20}]
             self.minimap_area = m
+
+            print(str(self.minimap) + "Found Minimap")
             return True
         print("Window.__locate_minimap(): Failed to find minimap.")
         return False
+    
+    def capture_region(self, rect: Rectangle, filename: str):
+        """
+        Captures a screenshot of a specific region within the game window and saves it to a file.
+        Args:
+            rect: The Rectangle defining the region to capture.
+            filename: The name of the file to save the screenshot to.
+        """
+        # Bring the window to the foreground
+        self.focus()
+        time.sleep(0.1)  # Allow time for the window to activate
+
+        # Capture the region using the Rectangle's screenshot method
+        screenshot = rect.screenshot()
+
+        # Convert the screenshot from BGR (OpenCV format) to RGB (PIL format)
+        screenshot_rgb = cv2.cvtColor(screenshot, cv2.COLOR_BGR2RGB)
+
+        # Create a PIL Image from the numpy array
+        image = Image.fromarray(screenshot_rgb)
+
+        # Save the image to a file
+        image.save(filename)
+        print(f"Screenshot of region saved as {filename}")
 
 
 class MockWindow(Window):
+
     def __init__(self):
         super().__init__(window_title="None", padding_left=0, padding_top=0)
 
