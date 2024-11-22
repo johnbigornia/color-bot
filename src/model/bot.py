@@ -4,6 +4,7 @@ pre-implemented and can be used by subclasses, or called by the controller. Code
 """
 import ctypes
 import platform
+import random
 import re
 import threading
 import time
@@ -596,3 +597,63 @@ class Bot(ABC):
             self.mouse.click()
         else:
             self.log_msg("Run is already off.")
+
+    #custom additions
+
+    def random_break(self, lower_range_time: int, upper_range_time: int):
+        """
+        Takes a random break, one break is longer than other. The longer break 
+        will be randomized between two ranges. 
+        
+        Args:
+            lower_range(int): Minutes
+            upper_range(int): Minutes
+        """
+        lower_range_time = lower_range_time * 60
+        upper_range_time = upper_range_time * 60
+        probability_of_one = 0.01 
+        if random.random() < probability_of_one:
+            break_length = random.uniform(lower_range_time, upper_range_time)
+            self.log_msg(f"Taking a {break_length} s break")
+            time.sleep(break_length)
+        else:
+            time.sleep(random.uniform(0.8, 9))
+
+    def wait_for_animation(self, text):
+        is_waiting = True
+        start_time = time.time()  # Record the start time
+        timeout = 5  # Set the timeout duration in seconds
+        time.sleep(0.6)
+        while is_waiting:
+            if ocr.find_text(text, self.win.game_view, ocr.PLAIN_11, clr.WHITE):
+                time.sleep(random.uniform(1.05, 1.25))
+                is_waiting = False
+            elif time.time() - start_time > timeout:
+                # If more than 5 seconds have passed, exit the loop
+                is_waiting = False
+            else:
+                time.sleep(0.01)  # Optional: add a short sleep to prevent CPU overuse
+
+    def login(self):
+        self.mouse.move_to(self.win.login_first.random_point())
+        self.mouse.click()
+        time.sleep(8)
+        self.mouse.move_to(self.win.login_secondary.random_point())
+        self.mouse.click()
+        time.sleep(8)
+
+    def logout_break(self, lower_range_time: int, upper_range_time: int):
+        """
+        Takes a long break. Break time is randomized between two ranges. 
+        
+        Args:
+            lower_range(int): Minutes
+            upper_range(int): Minutes
+        """
+        lower_range_time = lower_range_time * 60
+        upper_range_time = upper_range_time * 60
+
+        self.logout()
+        time.sleep(random.uniform(lower_range_time, upper_range_time))
+        self.login()
+        

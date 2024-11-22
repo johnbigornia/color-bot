@@ -15,6 +15,7 @@ class OSRSTemplate(OSRSBot):
         super().__init__(bot_title=bot_title, description=description)
         # Set option variables below (initial value is only used during headless testing)
         self.running_time = 1
+        self.api_m = MorgHTTPSocket()
 
     def create_options(self):
         """

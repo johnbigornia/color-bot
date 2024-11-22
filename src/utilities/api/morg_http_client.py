@@ -1,13 +1,6 @@
-"""
-API utility for MorgHTTPClient socket plugin.
-"""
 import time
 from typing import List, Tuple, Union
-
 import requests
-from deprecated import deprecated
-from requests.exceptions import ConnectionError
-
 
 class SocketError(Exception):
     def __init__(self, error_message: str, endpoint: str):
@@ -18,30 +11,28 @@ class SocketError(Exception):
     def get_error(self):
         return f"{self.__error_message} endpoint: {self.__endpoint}"
 
-
 class MorgHTTPSocket:
     def __init__(self):
-        self.base_endpoint = "http://localhost:8081/"
+        self.base_endpoint = "http://localhost:8080/"
 
         self.inv_endpoint = "inv"
         self.stats_endpoint = "stats"
-        self.equip_endpoint = "equip"
-        self.events_endpoint = "events"
 
         self.timeout = 1
 
     def __do_get(self, endpoint: str) -> dict:
         """
+        Sends a GET request to the specified endpoint.
         Args:
-                endpoint: One of either "inv", "stats", "equip", "events"
+            endpoint: The endpoint to send the request to.
         Returns:
-                All JSON data from the endpoint as a dict.
+            The JSON data from the response as a dictionary.
         Raises:
-                SocketError: If the endpoint is not valid or the server is not running.
+            SocketError: If the endpoint is not valid or the server is not running.
         """
         try:
             response = requests.get(f"{self.base_endpoint}{endpoint}", timeout=self.timeout)
-        except ConnectionError as e:
+        except requests.exceptions.ConnectionError as e:
             raise SocketError("Unable to reach socket", endpoint) from e
 
         if response.status_code != 200:
@@ -55,257 +46,18 @@ class MorgHTTPSocket:
 
         return response.json()
 
-    def test_endpoints(self) -> bool:
-        """
-        Ensures all endpoints are working correctly to avoid errors happening when any method is called.
-        Returns:
-                True if successful, False otherwise.
-        """
-        for i in list(self.__dict__.values())[1:-1]:  # Look away
-            try:
-                self.__do_get(endpoint=i)
-            except SocketError as e:
-                print(e)
-                print(f"Endpoint {i} is not working.")
-                return False
-        return True
-
-    def get_hitpoints(self) -> Tuple[int, int]:
-        """
-        Fetches the current and maximum hitpoints of the player.
-        Returns:
-                A Tuple(current_hitpoints, maximum_hitpoints).
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        if hitpoints_data := data.get("health"):
-            cur_hp, max_hp = hitpoints_data.split("/")
-            return int(cur_hp), int(max_hp)
-        else:
-            return -1, -1
-
-    def get_run_energy(self) -> int:
-        """
-        Fetches the current run energy of the player.
-        Returns:
-                An int representing the current run energy.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return int(run_energy) if (run_energy := data.get("run energy")) else -1
-
-    def get_animation(self) -> int:
-        """
-        Fetches the current animation the actor is performing.
-        Returns:
-                An int representing the current animation.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return int(data["animation"]) if data.get("animation") else -1
-
-    def get_animation_id(self) -> int:
-        """
-        Fetches the current animation frame ID the actor is using. Useful for checking if the player is doing
-        a particular action.
-        Returns:
-                An int representing the current animation ID.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return int(data["animation pose"]) if data.get("animation pose") else -1
-
-    def get_is_player_idle(self, poll_seconds=1) -> bool:
-        """
-        Checks if the player is doing an idle animation.
-        Args:
-                poll_seconds: The number of seconds to poll for an idle animation.
-        Returns:
-                True if the player is idle, False otherwise..
-        """
-        start_time = time.time()
-        while time.time() - start_time < poll_seconds:
-            data = self.__do_get(endpoint=self.events_endpoint)
-            if data.get("animation") != -1 or data.get("animation pose") not in [808, 813]:
-                return False
-        return True
-
-    def get_skill_level(self, skill: str) -> int:
-        # sourcery skip: class-extract-method
-        """
-        Gets level of inputted skill.
-        Args:
-                skill: the name of the skill (not case sensitive)
-        Returns:
-                The level of the skill as an int, or -1 if an error occurred.
-        """
-        data = self.__do_get(endpoint=self.stats_endpoint)
-        try:
-            level = next(int(i["level"]) for i in data[1:] if i["stat"] == skill)
-        except StopIteration:
-            print(f"Invalid stat name: {skill}. Consider using the `stat_names` utility.")
-            return -1
-        return level
-
-    def get_skill_xp(self, skill: str) -> int:
-        """
-        Gets the total xp of a skill.
-        Args:
-                skill: the name of the skill.
-        Returns:
-                The total xp of the skill as an int, or -1 if an error occurred.
-        """
-        data = self.__do_get(endpoint=self.stats_endpoint)
-        try:
-            total_xp = next(int(i["xp"]) for i in data[1:] if i["stat"] == skill)
-        except StopIteration:
-            print(f"Invalid stat name: {skill}. Consider using the `stat_names` utility.")
-            return -1
-        return total_xp
-
-    def get_skill_xp_gained(self, skill: str) -> int:
-        """
-        Gets the xp gained of a skill. The tracker begins at 0 on client startup.
-        Args:
-                skill: the name of the skill.
-        Returns:
-                The xp gained of the skill as an int, or -1 if an error occurred.
-        """
-        data = self.__do_get(endpoint=self.stats_endpoint)
-        try:
-            xp_gained = next(int(i["xp gained"]) for i in data[1:] if i["stat"] == skill)
-        except StopIteration:
-            print(f"Invalid stat name: {skill}. Consider using the `stat_names` utility.")
-            return -1
-        return xp_gained
-
-    def wait_til_gained_xp(self, skill: str, timeout: int = 10) -> int:
-        """
-        Waits until the player has gained xp in the inputted skill.
-        Args:
-                skill: the name of the skill (not case sensitive).
-                timeout: the maximum amount of time to wait for xp gain (seconds).
-        Returns:
-                The xp gained of the skill as an int, or -1 if no XP was gained or an error occurred during the timeout.
-        """
-        starting_xp = self.get_skill_xp(skill)
-        if starting_xp == -1:
-            print("Failed to get starting xp.")
-            return -1
-
-        stop_time = time.time() + timeout
-        while time.time() < stop_time:
-            data = self.__do_get(endpoint=self.stats_endpoint)
-            final_xp = next(int(i["xp"]) for i in data[1:] if i["stat"] == skill)
-            if final_xp > starting_xp:
-                return final_xp
-            time.sleep(0.2)
-        return -1
-
-    def get_game_tick(self) -> int:
-        """
-        Fetches game tick number.
-        Returns:
-                An int representing the current game tick.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return int(data["game tick"]) if "game tick" in data else -1
-
-    def get_latest_chat_message(self) -> str:
-        """
-        Fetches the most recent chat message in the chat box.
-        Returns:
-                A string representing the latest chat message.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return data["latest msg"] if "latest msg" in data else ""
-
-    def get_player_position(self) -> Tuple[int, int, int]:
-        """
-        Fetches the world point of a player.
-        Returns:
-                A tuple of ints representing the player's world point (x, y, z), or (-1, -1, -1) if data is not present or invalid.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        if "worldPoint" not in data:
-            return -1, -1, -1
-        return (
-            int(data["worldPoint"]["x"]),
-            int(data["worldPoint"]["y"]),
-            int(data["worldPoint"]["plane"]),
-        )
-
-    def get_player_region_data(self) -> Tuple[int, int, int]:
-        """
-        Fetches region data of a player's position.
-        Returns:
-                A tuple of ints representing the player's region data (region_x, region_y, region_ID).
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        if "worldPoint" not in data:
-            return -1, -1, -1
-        return (
-            int(data["worldPoint"]["regionX"]),
-            int(data["worldPoint"]["regionY"]),
-            int(data["worldPoint"]["regionID"]),
-        )
-
-    def get_camera_position(self) -> Union[dict, None]:
-        """
-        Fetches the position of a player's camera.
-        Returns:
-                A dict containing the player's camera position {yaw, pitch, x, y, z, x2, y2, z2},
-                or None if data is not present or invalid.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return data["camera"] if "camera" in data else None
-
-    def get_mouse_position(self) -> Tuple[int, int]:
-        """
-        Fetches the position of a player's mouse.
-        Returns:
-                A tuple of ints representing the player's mouse position (x, y).
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        if "mouse" not in data:
-            return -1, -1
-        return int(data["mouse"]["x"]), int(data["mouse"]["y"])
-
-    def get_interaction_code(self) -> str:
-        """
-        Fetches the interacting code of the current interaction. (Use case unknown)
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return data["interacting code"] if "interacting code" in data else None
-
-    def get_is_in_combat(self) -> Union[bool, None]:
-        """
-        Determines if the player is in combat.
-        Returns:
-                True if the player is in combat, False if not.
-                Returns None if an error occurred.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return None if "npc name" not in data else data["npc name"] != "null"
-
-    @deprecated(reason="This method seems to return unreliable values for the NPC's HP.")
-    def get_npc_hitpoints(self) -> Union[int, None]:
-        """
-        Fetches the HP of the NPC currently targetted.
-        TODO: Result seems to be multiplied by 6...?
-        Returns:
-                An int representing the NPC's HP, or None if an error occurred.
-                If no NPC is in combat, returns 0.
-        """
-        data = self.__do_get(endpoint=self.events_endpoint)
-        return int(data["npc health "])
+    # Inventory Methods
 
     def get_inv(self):
         """
-        Gets a list of dicts representing the player inventory.
+        Gets a list of dicts representing the player's inventory.
         Returns:
-            List of dictionaries, each containing index, ID, and quantity of an item.
+            A list of dictionaries, each containing index, id, and quantity of an item.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
         inventory = []
         for index, item in enumerate(data):
-            if item["quantity"] == 0:
+            if item["quantity"] == 0 or item["id"] == -1:
                 continue
             item_info = {"index": index, "id": item["id"], "quantity": item["quantity"]}
             inventory.append(item_info)
@@ -313,187 +65,200 @@ class MorgHTTPSocket:
 
     def get_if_item_in_inv(self, item_id: Union[List[int], int]) -> bool:
         """
-        Checks if an item is in the inventory or not.
+        Checks if an item is in the inventory.
         Args:
-                item_id: the id of the item to check for (an single ID, or list of IDs).
+            item_id: The ID of the item to check for (single ID or list of IDs).
         Returns:
-                True if the item is in the inventory, False if not.
+            True if the item is in the inventory, False otherwise.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
         if isinstance(item_id, int):
-            return any(inventory_slot["id"] == item_id for inventory_slot in data)
+            return any(slot["id"] == item_id for slot in data)
         elif isinstance(item_id, list):
-            return any(inventory_slot["id"] in item_id for inventory_slot in data)
+            return any(slot["id"] in item_id for slot in data)
+        else:
+            return False
 
     def get_is_inv_full(self) -> bool:
         """
-        Checks if player's inventory is full.
+        Checks if the player's inventory is full.
         Returns:
-                True if the player's inventory is full, False otherwise.
+            True if the inventory is full, False otherwise.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
-        return len([item["id"] for item in data if item["id"] != -1]) == 28
+        return len([item for item in data if item["id"] != -1]) == 28
 
     def get_is_inv_empty(self) -> bool:
         """
-        Checks if player's inventory is empty.
+        Checks if the player's inventory is empty.
         Returns:
-                True if the player's inventory is empty, False otherwise.
+            True if the inventory is empty, False otherwise.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
-        return not [item["id"] for item in data if item["id"] != -1]
+        return all(item["id"] == -1 for item in data)
 
-    def get_inv_item_indices(self, item_id: Union[List[int], int]) -> list:
+    def get_inv_item_indices(self, item_id: Union[List[int], int]) -> List[int]:
         """
-        For the given item ID(s), returns a list of inventory slot indexes that the item exists in.
-        Useful for locating items you do not want to drop. If you want to locate an item in your
-        inventory, consider using :meth:`MorgHTTPSocket.get_first_occurrence()` instead.
+        Gets the indices of the specified item(s) in the inventory.
         Args:
-                item_id: The item ID to search for (an single ID, or list of IDs).
+            item_id: The ID of the item(s) to search for.
         Returns:
-                A list of inventory slot indexes that the item(s) exists in.
+            A list of inventory slot indices where the item(s) are found.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
         if isinstance(item_id, int):
-            return [i for i, inventory_slot in enumerate(data) if inventory_slot["id"] == item_id]
+            return [i for i, slot in enumerate(data) if slot["id"] == item_id]
         elif isinstance(item_id, list):
-            return [i for i, inventory_slot in enumerate(data) if inventory_slot["id"] in item_id]
+            return [i for i, slot in enumerate(data) if slot["id"] in item_id]
+        else:
+            return []
 
     def get_first_occurrence(self, item_id: Union[List[int], int]) -> Union[int, List[int]]:
         """
-        For the given item ID(s), returns the first inventory slot index that the item exists in.
-        e.g. [1, 1, 2, 3, 3, 3, 4, 4, 4, 4] -> [0, 2, 3, 6]
+        Gets the first inventory slot index of the specified item(s).
         Args:
-            item_id: The item ID to search for (an single ID, or list of IDs).
+            item_id: The ID of the item(s) to search for.
         Returns:
-            The first inventory slot index that the item exists in for each unique item ID.
-            If a single item ID is provided, returns an integer (or -1).
-            If a list of item IDs is provided, returns a list of integers (or empty list).
+            The first inventory slot index of the item if a single ID is provided,
+            or a list of indices if a list of IDs is provided.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
         if isinstance(item_id, int):
-            return next((i for i, inventory_slot in enumerate(data) if inventory_slot["id"] == item_id), -1)
+            return next((i for i, slot in enumerate(data) if slot["id"] == item_id), -1)
         elif isinstance(item_id, list):
             first_occurrences = {}
-            for i, inventory_slot in enumerate(data):
-                item_id_in_slot = inventory_slot["id"]
-                if item_id_in_slot not in first_occurrences and item_id_in_slot in item_id:
-                    first_occurrences[item_id_in_slot] = i
+            for i, slot in enumerate(data):
+                if slot["id"] in item_id and slot["id"] not in first_occurrences:
+                    first_occurrences[slot["id"]] = i
             return list(first_occurrences.values())
+        else:
+            return []
 
     def get_inv_item_stack_amount(self, item_id: Union[int, List[int]]) -> int:
         """
-        For the given item ID, returns the total amount of that item in your inventory.
-        This is only useful for items that stack (e.g. coins, runes, etc).
+        Gets the total quantity of the specified item(s) in the inventory.
         Args:
-            id: The item ID to search for. If a list is passed, the first matching item will be used.
-                This is useful for items that have multiple IDs (e.g. coins, coin pouches, etc.).
+            item_id: The ID of the item(s) to search for.
         Returns:
-            The total amount of that item in your inventory.
+            The total quantity of the item(s) in the inventory.
         """
         data = self.__do_get(endpoint=self.inv_endpoint)
+        total_quantity = 0
         if isinstance(item_id, int):
             item_id = [item_id]
-        if result := next((item for item in data if item["id"] in item_id), None):
-            return int(result["quantity"])
-        return 0
-
-    def get_is_item_equipped(self, item_id: Union[int, List[int]]) -> bool:
+        for item in data:
+            if item["id"] in item_id:
+                total_quantity += item["quantity"]
+        return total_quantity
+    
+    def get_non_stackable_item_count(self, item_id: Union[int, List[int]]) -> int:
         """
-        Checks if the player has given item(s) equipped. Given a list of IDs, returns True on first ID found.
+        Counts the total number of non-stackable items in the inventory for the specified item ID(s).
         Args:
-                item_id: the id of the item to check for (a single ID, or list of IDs).
+            item_id: The ID of the item(s) to count (single ID or list of IDs).
         Returns:
-                True if an item is equipped, False if not.
+            The total count of the item(s) in the inventory.
         """
-        data = self.__do_get(endpoint=self.equip_endpoint)
-        equipped_ids = [item["id"] for item in data]
+        data = self.__do_get(endpoint=self.inv_endpoint)
+        count = 0
         if isinstance(item_id, int):
-            return item_id in equipped_ids
-        return any(item in item_id for item in equipped_ids)
+            item_id = [item_id]
+        for item in data:
+            if item["id"] in item_id:
+                count += 1
+        return count
 
-    def get_equipped_item_quantity(self, item_id: int) -> int:
+    # Stats Methods
+
+    def get_skill_level(self, skill: str) -> int:
         """
-        Checks for the quantity of an equipped item.
+        Gets the level of the specified skill.
         Args:
-                item_id: The ID of the item to check for.
+            skill: The name of the skill (not case-sensitive).
         Returns:
-                The quantity of the item equipped, or 0 if not equipped.
+            The level of the skill, or -1 if not found.
         """
-        data = self.__do_get(endpoint=self.equip_endpoint)
-        return next(
-            (int(equip_slot["quantity"]) for equip_slot in data if equip_slot["id"] == item_id),
-            0,
-        )
+        data = self.__do_get(endpoint=self.stats_endpoint)
+        try:
+            level = next(int(i["level"]) for i in data if i["stat"].lower() == skill.lower())
+        except StopIteration:
+            print(f"Invalid stat name: {skill}.")
+            return -1
+        return level
 
-    def convert_player_position_to_pixels(self):
+    def get_skill_xp(self, skill: str) -> int:
         """
-        Convert a world point into coordinate where to click with the mouse to make it possible to move via the socket.
-        TODO: Implement.
+        Gets the total XP of the specified skill.
+        Args:
+            skill: The name of the skill (not case-sensitive).
+        Returns:
+            The total XP of the skill, or -1 if not found.
         """
-        pass
+        data = self.__do_get(endpoint=self.stats_endpoint)
+        try:
+            total_xp = next(int(i["xp"]) for i in data if i["stat"].lower() == skill.lower())
+        except StopIteration:
+            print(f"Invalid stat name: {skill}.")
+            return -1
+        return total_xp
 
+    def wait_til_gained_xp(self, skill: str, timeout: int = 10) -> int:
+        """
+        Waits until XP is gained in the specified skill.
+        Args:
+            skill: The name of the skill (not case-sensitive).
+            timeout: The maximum time to wait in seconds.
+        Returns:
+            The amount of XP gained, or -1 if no XP was gained within the timeout.
+        """
+        starting_xp = self.get_skill_xp(skill)
+        if starting_xp == -1:
+            print("Failed to get starting XP.")
+            return -1
 
-# sourcery skip: remove-redundant-if
+        stop_time = time.time() + timeout
+        while time.time() < stop_time:
+            current_xp = self.get_skill_xp(skill)
+            if current_xp == -1:
+                print("Failed to get current XP.")
+                return -1
+            if current_xp > starting_xp:
+                return current_xp - starting_xp
+            time.sleep(0.2)
+        return -1
+
+    # Note: Methods requiring endpoints not available have been omitted.
+
 if __name__ == "__main__":
-    import item_ids as ids
-
     api = MorgHTTPSocket()
 
-    # Note: Making API calls in succession too quickly can result in issues
-    while True:
-        # Player Data
-        if False:
-            # Example of safely getting player data
-            if hp := api.get_hitpoints():
-                print(f"Current HP: {hp[0]}")
-                print(f"Max HP: {hp[1]}")
+    # Example usage:
 
-            print(f"Run Energy: {api.get_run_energy()}")
-            print(f"get_animation(): {api.get_animation()}")
-            print(f"get_animation_id(): {api.get_animation_id()}")
-            print(f"Is player idle: {api.get_is_player_idle()}")
+    # Inventory Data
+    print("Inventory Items:")
+    inventory = api.get_inv()
+    for item in inventory:
+        print(f"Index: {item['index']}, ID: {item['id']}, Quantity: {item['quantity']}")
 
-        # World Data
-        if False:
-            print(f"Game tick: {api.get_game_tick()}")
-            print(f"Player position: {api.get_player_position()}")
-            print(f"Player region data: {api.get_player_region_data()}")
-            print(f"Mouse position: {api.get_mouse_position()}")
-            # print(f"get_interaction_code(): {api.get_interaction_code()}")
-            print(f"Is in combat?: {api.get_is_in_combat()}")
-            print(f"get_npc_health(): {api.get_npc_hitpoints()}")
+    # Check if specific item is in inventory
+    item_id = 946  # Example item ID
+    is_in_inventory = api.get_if_item_in_inv(item_id)
+    print(f"Is item ID {item_id} in inventory? {is_in_inventory}")
 
-        # Inventory Data
-        if False:
-            print(f"Is inventory full: {api.get_is_inv_full()}")
-            print(f"Is inventory empty: {api.get_is_inv_empty()}")
-            print(f"Are logs in inventory?: {api.get_if_item_in_inv(ids.logs)}")
-            print(f"Find amount of change in inv: {api.get_inv_item_stack_amount(ids.coins)}")
-            print(f"Get position of all bones in inv: {api.get_inv_item_indices(ids.BONES)}")
-            print(f"Get position of first logs in inventory: {api.get_first_occurrence(ids.LOGS)}")
+    # Get skill level
+    skill_name = "Attack"
+    level = api.get_skill_level(skill_name)
+    print(f"{skill_name} Level: {level}")
 
-        # Wait for XP to change
-        if False:
-            print(f"WC Level: {api.get_skill_level('Woodcutting')}")
-            print(f"WC XP: {api.get_skill_xp('Woodcutting')}")
-            print(f"WC XP Gained: {api.get_skill_xp_gained('Woodcutting')}")
-            print("---waiting for wc xp to be gained---")
-            if api.wait_til_gained_xp(skill="Woodcutting", timeout=10):
-                print("Gained xp!")
-            else:
-                print("No xp gained.")
+    # Get skill XP
+    xp = api.get_skill_xp(skill_name)
+    print(f"{skill_name} XP: {xp}")
 
-        # Equipment Data
-        if False:
-            print(f"Is bronze axe equipped?: {api.get_is_item_equipped(ids.BRONZE_AXE)}")
-            print(f"Are there any ring of duelings equipped? {api.get_is_item_equipped(ids.rods)}")
-            print(f"How many bronze arrows equipped?: {api.get_equipped_item_quantity(ids.BRONZE_ARROW)}")
+    # Wait until XP is gained in a skill
+    print(f"Waiting for XP gain in {skill_name}...")
+    xp_gained = api.wait_til_gained_xp(skill_name, timeout=30)
+    if xp_gained != -1:
+        print(f"Gained {xp_gained} XP in {skill_name}!")
+    else:
+        print(f"No XP gained in {skill_name} within the timeout.")
 
-        # Chatbox Data
-        if True:
-            print(f"Latest chat message: {api.get_latest_chat_message()}")
-
-        time.sleep(2)
-
-        print("\n--------------------------\n")

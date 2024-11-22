@@ -118,7 +118,7 @@ class Chinchompas(OSRSBot):
         time.sleep(0.6)
         while is_waiting:
             if ocr.find_text("08", self.win.game_view, ocr.PLAIN_11, clr.WHITE):
-                time.sleep(random.uniform(2.029048520, 2.22394870))
+                time.sleep(random.uniform(1.05, 1.25))
                 is_waiting = False
             elif time.time() - start_time > timeout:
                 # If more than 5 seconds have passed, exit the loop

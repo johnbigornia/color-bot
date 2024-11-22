@@ -333,3 +333,13 @@ class RuneLiteObject:
         x = int(center_x + radius * np.cos(angle))
         y = int(center_y + radius * np.sin(angle))
         return Point(x, y)
+    
+
+    def print_properties(self):
+        """
+        Prints all the properties of the object in one line.
+        """
+        print(f"x_min: {self._x_min}, x_max: {self._x_max}, "
+                f"y_min: {self._y_min}, y_max: {self._y_max}, "
+                f"Width: {self._width}, Height: {self._height}, "
+                f"Center: {self._center}")

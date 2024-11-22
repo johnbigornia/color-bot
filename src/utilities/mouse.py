@@ -35,7 +35,7 @@ class Mouse:
         distortionStdev = kwargs.get("distortionStdev", 1)
         distortionFrequency = kwargs.get("distortionFrequency", 0.5)
         tween = kwargs.get("tweening", pytweening.easeOutQuad)
-        mouseSpeed = kwargs.get("mouseSpeed", "fast")
+        mouseSpeed = kwargs.get("mouseSpeed", "fastest")
         mouseSpeed = self.__get_mouse_speed(mouseSpeed)
 
         dest_x = destination[0]
@@ -171,7 +171,7 @@ class Mouse:
         elif speed == "fast":
             min, max = 20, 40
         elif speed == "fastest":
-            min, max = 10, 15
+            min, max = 15, 25
         else:
             raise ValueError("Invalid mouse speed. Try 'slowest', 'slow', 'medium', 'fast', or 'fastest'.")
         return round(truncated_normal_sample(min, max))

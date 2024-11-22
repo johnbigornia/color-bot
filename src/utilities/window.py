@@ -64,6 +64,12 @@ class Window:
     game_view: Rectangle = None
     mouseover: Rectangle = None
     total_xp: Rectangle = None
+    login_first: Rectangle = None
+    login_secondary: Rectangle = None
+
+    # Bank
+    bank_slots: List[Rectangle] = []
+    close_bank_button: Rectangle = None
 
     def __init__(self, window_title: str, padding_top: int, padding_left: int) -> None:
         """
@@ -133,15 +139,14 @@ class Window:
         """
         start_time = time.time()
         client_rect = self.rectangle()
-        self.capture_region(client_rect, "client_rect.png")
+        center = Point(x=client_rect.get_center().x, y=client_rect.get_center().y - 100)
+        self.login_first = self.create_centered_rectangle(center, 10, 10)
+        center = Point(x=client_rect.get_center().x, y=client_rect.get_center().y - 0)
+        self.login_secondary = self.create_centered_rectangle(center, 25, 25)
         a = self.__locate_minimap(client_rect)
-        self.capture_region(self.minimap_area, "minimap.png")
         b = self.__locate_chat(client_rect)
-        self.capture_region(self.chat, "chat.png")
         c = self.__locate_control_panel(client_rect)
-        self.capture_region(self.control_panel, "control_panel.png")
         d = self.__locate_game_view(client_rect)
-        self.capture_region(self.game_view, "game_view.png")
         if all([a, b, c, d]):  # if all templates found
             print(f"Window.initialize() took {time.time() - start_time} seconds.")
             return True
@@ -287,7 +292,44 @@ class Window:
 
             self.game_view.subtract_list = [minimap, chat, control_panel]
         self.mouseover = Rectangle(left=self.game_view.left, top=self.game_view.top, width=407, height=26)
+        self.__locate_bank_ui_elements()
+
         return True
+    
+
+    def __locate_bank_ui_elements(self) -> None:
+        """
+        Calculates and stores the bank slots and close bank button rectangles.
+        This method should be called when the bank interface is open.
+        """
+        if self.game_view is None:
+            raise ValueError("Game view is not initialized.")
+
+        # Close bank button
+        x_min_close = self.game_view.left + 477
+        y_min_close = self.game_view.top + 15
+        width_close = 16
+        height_close = 13
+        self.close_bank_button = Rectangle(left=x_min_close, top=y_min_close, width=width_close, height=height_close)
+
+        # Bank slots
+        self.bank_slots = []
+        slot_width = 26
+        slot_height = 22
+        x_start = self.game_view.left + 411
+        y_start = self.game_view.top + 86
+
+        num_columns = 8  # Number of columns in the bank interface
+        num_rows = 5     # Number of rows in the bank interface
+        x_gap = 22        # Gap between slots in the x-axis
+        y_gap = 14        # Gap between slots in the y-axis
+
+        for row in range(num_rows):
+            for col in range(num_columns):
+                x = x_start - col * (slot_width + x_gap)
+                y = y_start + row * (slot_height + y_gap)
+                rect = Rectangle(left=x, top=y, width=slot_width, height=slot_height)
+                self.bank_slots.append(rect)
 
     def __locate_minimap(self, client_rect: Rectangle) -> bool:
         """
@@ -356,6 +398,21 @@ class Window:
         image.save(filename)
         print(f"Screenshot of region saved as {filename}")
 
+    def create_centered_rectangle(self, center: Point, width: int, height: int) -> Rectangle:
+        """
+        Creates a Rectangle centered at the given Point with specified width and height.
+        
+        Args:
+            center (Point): The center point of the rectangle.
+            width (int): The width of the rectangle.
+            height (int): The height of the rectangle.
+        
+        Returns:
+            Rectangle: The created Rectangle instance.
+        """
+        left = center.x - width // 2
+        top = center.y - height // 2
+        return Rectangle(left=left, top=top, width=width, height=height)
 
 class MockWindow(Window):
 
