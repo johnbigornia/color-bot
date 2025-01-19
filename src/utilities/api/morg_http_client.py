@@ -48,6 +48,16 @@ class MorgHTTPSocket:
 
     # Inventory Methods
 
+    def get_inventory_item_count(self) -> int:
+        """
+        Gets the total number of items in the inventory.
+        Returns:
+            The total count of items in the inventory.
+        """
+        data = self.__do_get(endpoint=self.inv_endpoint)
+        total_count = sum(item["quantity"] for item in data if item["id"] != -1)
+        return total_count
+    
     def get_inv(self):
         """
         Gets a list of dicts representing the player's inventory.
@@ -214,20 +224,34 @@ class MorgHTTPSocket:
         starting_xp = self.get_skill_xp(skill)
         if starting_xp == -1:
             print("Failed to get starting XP.")
-            return -1
+            return False
 
         stop_time = time.time() + timeout
         while time.time() < stop_time:
             current_xp = self.get_skill_xp(skill)
             if current_xp == -1:
                 print("Failed to get current XP.")
-                return -1
+                return False
             if current_xp > starting_xp:
-                return current_xp - starting_xp
-            time.sleep(0.2)
-        return -1
+                return True
+        return False
 
     # Note: Methods requiring endpoints not available have been omitted.
+
+    def is_item_in_slot(self, slot_index: int, item_id: int) -> bool:
+        """
+        Checks if a specific item ID exists in a specific inventory slot.
+        Args:
+            slot_index: The inventory slot index to check.
+            item_id: The ID of the item to check for.
+        Returns:
+            True if the item with the specified ID exists in the given slot, False otherwise.
+        """
+        data = self.__do_get(endpoint=self.inv_endpoint)
+        if 0 <= slot_index < len(data):
+            return data[slot_index]["id"] == item_id
+        else:
+            raise IndexError(f"Slot index {slot_index} is out of bounds for inventory size {len(data)}.")
 
 if __name__ == "__main__":
     api = MorgHTTPSocket()

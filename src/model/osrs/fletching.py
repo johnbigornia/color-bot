@@ -111,13 +111,11 @@ class Fletching(OSRSBot):
                         self.fletch_bow()
                     still_crafting = False 
                 time.sleep(2)
-            
-            self.random_break(2, 5)
+
+            time.sleep(random.uniform(0, 14))
 
             if self.api_m.get_if_item_in_inv(self.log_id) is False:
                 self.bank()
-                if random.random() < .01:
-                    self.random_break(2, 5)
 
             if time.time() >= self.end_timer:
                 self.logout_break(45, 65)

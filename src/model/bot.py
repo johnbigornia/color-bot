@@ -623,7 +623,6 @@ class Bot(ABC):
         is_waiting = True
         start_time = time.time()  # Record the start time
         timeout = 5  # Set the timeout duration in seconds
-        time.sleep(0.6)
         while is_waiting:
             if ocr.find_text(text, self.win.game_view, ocr.PLAIN_11, clr.WHITE):
                 time.sleep(random.uniform(1.05, 1.25))
