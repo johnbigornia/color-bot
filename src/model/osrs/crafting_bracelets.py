@@ -93,9 +93,9 @@ class Crafting_Bracelets(OSRSBot):
 
     def craft_bracelet(self):
         print("Looking for smith")
-        self.verify_mouse_position(self.get_nearest_tag(clr.BLUE), "Smelt")
+        self.verify_mouse_position_color(clr.BLUE, "Smelt")
         while self.mouse.click(check_red_click=True) == False:
-            self.verify_mouse_position(self.get_nearest_tag(clr.BLUE), "Smelt")
+            self.verify_mouse_position_color(clr.BLUE, "Smelt")
             time.sleep(.1)
 
         print("found smith")
@@ -129,9 +129,9 @@ class Crafting_Bracelets(OSRSBot):
 
             if counter == 5:
                 counter = 0
-                self.verify_mouse_position(self.get_nearest_tag(clr.BLUE), "Smelt")
+                self.verify_mouse_position_color(clr.BLUE, "Smelt")
                 while self.mouse.click(check_red_click=True) == False:
-                    self.verify_mouse_position(self.get_nearest_tag(clr.BLUE), "Smelt")
+                    self.verify_mouse_position_color(clr.BLUE, "Smelt")
                     time.sleep(.1)
                 image_path = self.CRAFT_BRACELET_IMAGES.joinpath("craft_menu.png")
                 chat_prompt = imsearch.search_img_in_rect(image_path, self.win.game_view, confidence=0.10)
@@ -156,10 +156,10 @@ class Crafting_Bracelets(OSRSBot):
         time.sleep(random.uniform(4, 13))
 
     def bank(self):
-        self.verify_mouse_position(self.get_nearest_tag(clr.YELLOW), "Bank")
+        self.verify_mouse_position_color(clr.YELLOW, "Bank")
         
         while self.mouse.click(check_red_click=True) is False:
-            self.verify_mouse_position(self.get_nearest_tag(clr.YELLOW), "Bank")
+            self.verify_mouse_position_color(clr.YELLOW, "Bank")
             time.sleep(1)
         time.sleep(1)
         while ocr.find_text("Giel", self.win.game_view, ocr.PLAIN_12, clr.ORANGE) is False:
@@ -202,6 +202,12 @@ class Crafting_Bracelets(OSRSBot):
             time.sleep(.1)
 
         print("done banking")
+
+    def verify_mouse_position_color(self, color, overtext):
+        while self.mouseover_text(overtext) is False:
+            obj = self.get_nearest_tag(color)
+            if obj is not None:
+                self.mouse.move_to(obj.random_point())
 
     def verify_mouse_position(self, rectangle, overtext):
         while self.mouseover_text(overtext) is False:

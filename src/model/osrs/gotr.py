@@ -155,7 +155,7 @@ class Gotr(OSRSBot):
             start_timer = time.time()
             print(f"current restart status: {self.restart}")
             while self.restart:
-                if time.time() - start_timer > 5:
+                if time.time() - start_timer > 10:
                     print("Timeout reached while waiting for object. Proceeding without finding object.")
                     break
                 time.sleep(.1)
@@ -168,6 +168,17 @@ class Gotr(OSRSBot):
                 print("Finished Handler")
                 while self.start is False:
                     print(self.start)
+                    start_area = self.get_nearest_tag(clr.STARTING)
+                    if start_area is None:
+                        try: 
+                            self.mouse.move_to(self.get_nearest_tag(clr.START).random_point())
+                            self.mouse.click()
+                            time.sleep(4)
+                            self.mouse.move_to(self.get_nearest_tag(clr.STARTING).random_point())
+                            self.mouse.click()
+                            time.sleep(6)
+                        except:
+                            print("Couldn't find start")
                     time.sleep(.1)
                 self.first_run = True
                 print("out of loop")
@@ -181,14 +192,7 @@ class Gotr(OSRSBot):
         self.stop()
 
     def state_handler(self):
-        print(f"in handler current state: {self.state}")
-        if self.state == State.GIVING_GUARDIANS or self.state == State.REPAIRING_BARRIER:
-            if self.runes_in_inv():
-                self.deposit_runes()
-        elif self.state == State.CRAFTING_RUNES:
-            self.craft_runes()
-            self.deposit_runes()
-        elif self.in_altar:
+        if self.in_altar:
             while self.in_altar:
                 try:
                     portal = self.get_nearest_tag(clr.YELLOW)
@@ -202,6 +206,13 @@ class Gotr(OSRSBot):
                 print(f"location in altar: {self.in_altar}")
                 time.sleep(1)
         
+        print(f"in handler current state: {self.state}")
+        if self.state == State.GIVING_GUARDIANS or self.state == State.REPAIRING_BARRIER:
+            if self.runes_in_inv():
+                self.deposit_runes()
+        elif self.state == State.CRAFTING_RUNES:
+            self.craft_runes()
+            self.deposit_runes()
         print("Done handler")
 
     def starting(self): 
@@ -244,10 +255,11 @@ class Gotr(OSRSBot):
         time.sleep(2)
         self.find_object_and_click(clr.GREEN, "ignore")
         mine_xp_start = self.api_m.get_skill_xp("Mining")
+        time.sleep(6)
         while mine_xp_start == self.api_m.get_skill_xp("Mining"):
             self.find_object_and_click(clr.GREEN, "ignore")
             time.sleep(2)
-        time.sleep(random.uniform(107, 117))
+        time.sleep(random.uniform(100, 110))
         self.find_object_and_click(clr.BLUE, "b")    
         time.sleep(6)
         craft = self.get_all_tagged_in_rect(self.win.minimap, clr.BLUE)
@@ -378,6 +390,9 @@ class Gotr(OSRSBot):
             else:
                 counter = 0
 
+            if self.out_of_ess:
+                break
+            
             if counter >= 20:
                 self.find_object_and_click(clr.GREEN, "Work")
                 counter = 0
@@ -389,14 +404,17 @@ class Gotr(OSRSBot):
         while crafting:
             if self.api_m.get_is_inv_full() is True or self.api_m.get_if_item_in_inv(ids.GUARDIAN_FRAGMENTS) is False:
                 crafting = False
+                break
                 
             if self.restart:
                 crafting = False
+                break
 
             time.sleep(.1)
 
         if self.api_m.get_if_item_in_inv(ids.GUARDIAN_FRAGMENTS) is False:
             self.out_of_ess = True
+    
 
         self.check_restart()
         if self.out_of_ess is False and self.restart is False:
@@ -406,7 +424,12 @@ class Gotr(OSRSBot):
                 self.find_object_and_click(clr.GREEN, "Work")
                 starting_xp = self.api_m.get_skill_xp("Crafting")
                 counter = 0
+                start = time.time()
                 while self.api_m.get_is_inv_full() is False and self.restart is False:
+                    if time.time() - start >= 4 and self.out_of_ess is False:
+                        self.find_inv_and_click(self.api_m.get_inv_item_indices(ids.COLOSSAL_POUCH)[0], "Fill")
+                        self.find_object_and_click(clr.GREEN, "Work")
+
                     if self.api_m.get_skill_xp("Crafting") == starting_xp:
                         counter += 1
                     else:
@@ -424,8 +447,10 @@ class Gotr(OSRSBot):
                 while crafting:
                     if self.api_m.get_is_inv_full() is True or self.api_m.get_if_item_in_inv(ids.GUARDIAN_FRAGMENTS) is False:
                         crafting = False
+                        break
                     if self.restart:
                         crafting = False
+                        break
                     time.sleep(.1)
 
                 if self.api_m.get_if_item_in_inv(ids.GUARDIAN_ESSENCE) is False:
@@ -483,9 +508,12 @@ class Gotr(OSRSBot):
         self.api_m.wait_til_gained_xp("Runecraft")
         print("Crafted Runes")
         if self.first_run is False and self.out_of_ess is False:
-            pyautogui.keyDown("shift")
             self.find_inv_and_click(colossal_pouch[0], "Empty")
-            pyautogui.keyUp("shift")
+            self.find_object_and_click(clr.BLUE, "Altar")
+            self.api_m.wait_til_gained_xp("Runecraft")
+
+        if self.first_run is False and self.out_of_ess is False:
+            self.find_inv_and_click(colossal_pouch[0], "Empty")
             self.find_object_and_click(clr.BLUE, "Altar")
             self.api_m.wait_til_gained_xp("Runecraft")
         
@@ -519,80 +547,111 @@ class Gotr(OSRSBot):
             
         
     def give_guardians(self):
-        guardian = self.get_nearest_tag(clr.CYAN)
-        clicked = False
-        while clicked is False:
-            if guardian is None:
-                self.find_object_and_click(clr.START, "ignore")
-                guardian = self.get_nearest_tag(clr.CYAN)
-            print("looking for guardian")
+        portal = self.get_nearest_tag(clr.YELLOW)
+        while portal is None:
             if self.in_altar:
+                print("Clicking proxy")
+                self.find_object_and_click(clr.PINK, "ignore")
                 portal = self.get_nearest_tag(clr.YELLOW)
-                if portal is None:
-                    self.find_object_and_click(clr.PINK, "ignore")
                 time.sleep(2)
-                self.find_object_and_click(clr.YELLOW, "portal")
+            else:
                 break
-            if self.mouseover_text("G"):
-                self.mouse.click()
-
-                if self.api_m.get_if_item_in_inv(ids.CATALYTIC_GUARDIAN_STONE) or self.api_m.get_if_item_in_inv(ids.ELEMENTAL_GUARDIAN_STONE):
-                    clicked = False
-                    self.find_object_and_click(clr.CYAN, "G")
+        print(f"Finding Portal, in altar check two? {self.in_altar}")
+        if self.in_altar is True:
+            print("Portal Found")
+            self.find_object_and_click(clr.YELLOW, "Portal")
+            print("Waiting for transition")
+            dep = self.get_nearest_tag(clr.POOL)
+            start_time = time.time()
+            while dep is None:
+                if time.time() - start_time >= 10:
+                    start_time = time.time()
+                    if dep is None:
+                        self.find_object_and_click(clr.YELLOW, "Portal")
+                dep = self.get_nearest_tag(clr.POOL)
+                time.sleep(.1)
+        guardian = self.get_nearest_tag(clr.CYAN)
+        if guardian is not None:
+            self.mouse.move_to(guardian.random_point())
+            while self.mouse.click(check_red_click=True) is False:
+                guardian = self.get_nearest_tag(clr.CYAN)
+                if guardian is None:
+                    self.mouse.move_to(self.win.control_panel.random_point())
+                    guardian = self.get_nearest_tag(clr.CYAN)
                 else:
-                    clicked = True
-            elif guardian is not None:
-                while clicked is False:
-                    if self.api_m.get_if_item_in_inv(ids.CATALYTIC_GUARDIAN_STONE) or self.api_m.get_if_item_in_inv(ids.ELEMENTAL_GUARDIAN_STONE):
-                        clicked = False
-                        self.find_object_and_click(clr.CYAN, "G")
-                    else:
-                        clicked = True
+                    self.mouse.move_to(guardian.random_point())
+            curr_runecraft_xp = self.api_m.get_skill_xp("runecraft")
+            while curr_runecraft_xp == self.api_m.get_skill_xp("runecraft"):
+                time.sleep(.1)
+        
             
     def repair_barrier(self):
         barrier = self.get_nearest_tag(clr.BARRIER)
 
         while barrier is None:
+            if self.in_altar:
+                break
             print("barrier")
             barrier = self.get_nearest_tag(clr.BARRIER)
             self.find_object_and_click(clr.START, "ignore")
 
-        self.find_object_and_click(clr.BARRIER, "cell")
+        if self.in_altar is False:
+            self.find_object_and_click(clr.BARRIER, "cell")
 
-        self.api_m.wait_til_gained_xp("Runecraft")
-        time.sleep(1)
+            curr_runecraft_xp = self.api_m.get_skill_xp("runecraft")
+            start = time.time()
+            while curr_runecraft_xp == self.api_m.get_skill_xp("runecraft"):
+                if time.time() - start == 15:
+                    self.find_object_and_click(clr.BARRIER, "cell")
+                time.sleep(.1)
 
-    def find_inv_and_click(self, inv_slot, over_text):
+
+    def find_inv_and_click(self, inv_slot, over_text, wrong_text="filler"):
         self.mouse.move_to(self.win.inventory_slots[inv_slot].random_point())
-        while self.mouseover_text(over_text) is False:
-            self.mouse.move_to(self.win.inventory_slots[inv_slot].random_point())
-            time.sleep(.1)
-        self.mouse.click()
+        if self.mouseover_text(wrong_text) is False:
+            while self.mouseover_text(over_text) is False:
+                self.mouse.move_to(self.win.inventory_slots[inv_slot].random_point())
+                time.sleep(.1)
+            self.mouse.click()
+        else: 
+            print("Wrong text")
 
     def deposit_runes(self):
+        time.sleep(3)
+        print("In deposit runes")
         pool = self.get_nearest_tag(clr.POOL)
         while pool is None:
+            print("In deposit runes: first loop")
             start = self.get_nearest_tag(clr.START)
 
-            while not start:
+            while not start and self.in_altar is False:
+                print("In deposit runes: second loop")
                 self.mouse.move_to(self.win.control_panel.random_point())
                 start = self.get_nearest_tag(clr.START)
                 time.sleep(.1)
+
             self.find_object_and_click(clr.START, "ignore")
             time.sleep(2)
 
             pool = self.get_nearest_tag(clr.POOL)
 
-        self.find_object_and_click(clr.POOL, "Dep")
+        if self.find_object_and_click(clr.POOL, "Dep") is False:
+            self.find_object_and_click(clr.START, "ignore")
+            time.sleep(2)
+            self.find_object_and_click(clr.POOL, "Dep")
+
         counter = 0
 
         while self.runes_in_inv():
-            print("runes are in inv")
-
+            if self.in_altar:
+                break
+            print("In deposit runes: second loop")
             print(counter)
-            if counter > 50:
+            if counter > 100:
                 self.mouse.move_to(self.win.control_panel.random_point())
-                self.find_object_and_click(clr.POOL, "Dep")
+                if self.find_object_and_click(clr.POOL, "Dep") is False:
+                    self.find_object_and_click(clr.START, "ignore")
+                    time.sleep(2)
                 counter=0
             else:
                 counter += 1
@@ -646,55 +705,63 @@ class Gotr(OSRSBot):
         
         
     def find_object_and_click(self, color: clr, over_text="", timeout=3):
-        obj = self.get_nearest_tag(color)
-        start_time = time.time()
-
-        # Wait for the object to be found
-        while obj is None:
-            self.mouse.move_to(self.win.chat.random_point())
+        try:
             obj = self.get_nearest_tag(color)
-            if time.time() - start_time > timeout:
-                self.log_msg("Timeout reached while waiting for object. Proceeding without finding object.")
-                break
-            time.sleep(0.1)
+        
+            start_time = time.time()
 
-        if obj is not None:
-            self.mouse.move_to(obj.random_point())
-            print("mouse working??")
+            # Wait for the object to be found
+            while obj is None:
+                self.mouse.move_to(self.win.chat.random_point())
+                obj = self.get_nearest_tag(color)
+                if time.time() - start_time > timeout:
+                    self.log_msg("Timeout reached while waiting for object. Proceeding without finding object.")
+                    break
+                time.sleep(0.1)
 
-            # Handle text checking
-            if over_text != "" and over_text != "ignore":
-                start_time = time.time()
-                while self.mouseover_text(over_text) is False:
-                    obj = self.get_nearest_tag(color)
-                    if obj is None:
-                        self.mouse.move_to(self.win.chat.random_point())
+            if obj is not None:
+                self.mouse.move_to(obj.random_point())
+                print("mouse working??")
 
-                    if time.time() - start_time > timeout:
-                        self.log_msg("Timeout reached while checking text. Clicking anyway.")
-                        break
-                    if obj is not None:
+                # Handle text checking
+                if over_text != "" and over_text != "ignore":
+                    start_time = time.time()
+                    while self.mouseover_text(over_text) is False:
+                        obj = self.get_nearest_tag(color)
+                        if obj is None:
+                            self.mouse.move_to(self.win.chat.random_point())
+
+                        if time.time() - start_time > timeout:
+                            self.log_msg("Timeout reached while checking text. Clicking anyway.")
+                            break
+                        if obj is not None:
+                            self.mouse.move_to(obj.random_point())
+                        time.sleep(0.1)
+
+                print(f"is defeatee {self.defeated} is restarting: {self.restart}")
+
+                if over_text == "ignore":
+                    start_time = time.time()
+                    while self.mouseover_text("Enter"):
+                        if time.time() - start_time > timeout:
+                            print("timeout ignore")
+                            break
                         self.mouse.move_to(obj.random_point())
-                    time.sleep(0.1)
-
-            print(f"is defeatee{self.defeated} is restarting: {self.restart}")
-
-            if over_text == "ignore":
-                start_time = time.time()
-                while self.mouseover_text("Enter"):
-                    if time.time() - start_time > timeout:
-                        print("timeout ignore")
-                        break
-                    self.mouse.move_to(obj.random_point())
-                    time.sleep(.1)
-                if self.mouseover_text("Switch") == False:
-                    self.mouse.click()
-            # Perform the click
+                        time.sleep(.1)
+                    if self.mouseover_text("Switch") == False:
+                        self.mouse.click()
+                # Perform the click
+                else:
+                    if self.mouseover_text("Switch") == False:
+                        self.mouse.click()
             else:
-                if self.mouseover_text("Switch") == False:
-                    self.mouse.click()
-        else:
-            print("No object")
+                print("No object")
+                return False
+            
+            return True
+        except:
+            print("failed to find and click")
+            return False
 
 
     def check_for_restart_image(self):
@@ -712,6 +779,12 @@ class Gotr(OSRSBot):
                 self.start = True
                 self.restart = False
             elif succ is not None or rest is not None or self.out_of_ess or self.defeated:
+                if succ is not None: 
+                    print("succeded with minigame")
+                elif self.out_of_ess:
+                    print("Ran out of ess")
+                elif self.defeated:
+                    print("Guardian Defeated!")
                 # If 'succ' or 'rest' is detected and 'still_starting' is not, restart
                 self.restart = True
                 self.start = False
@@ -745,8 +818,6 @@ class Gotr(OSRSBot):
                     if len(current_pillars) == 2:
                         if current_pillars[1] == 11 or current_pillars[1] == 12:
                             self.current_pillar = self.runes[current_pillars[1]]
-                        elif current_pillars[0] == 4 or current_pillars[0] == 3 or current_pillars[0] == 2:
-                            self.current_pillar = self.runes[current_pillars[0]]
                         else:
                             self.current_pillar = self.runes[current_pillars[1]]
                         break
@@ -768,7 +839,7 @@ class Gotr(OSRSBot):
             is_defeated = imsearch.search_img_in_rect(img, self.win.chat, confidence=0.05)
             if is_defeated is not None:
                 self.defeated = True
-                time.sleep(90)
+                time.sleep(40)
 
             time.sleep(.5)
 

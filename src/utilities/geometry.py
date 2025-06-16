@@ -1,4 +1,5 @@
 import math
+import random
 from typing import List, NamedTuple
 
 import cv2
@@ -236,6 +237,21 @@ class Rectangle:
         y = int(center_y + radius * np.sin(angle))
         return Point(x, y)
 
+    def point_left_outside(self, x_offset: int = random.randint(10, 30), y_variance: int = random.randint(1, 10)) -> Point:
+        """
+        Returns a point just outside the left side of the rectangle with randomness in the y-axis.
+        Args:
+            x_offset: Offset outside the left edge (default 5 pixels).
+            y_variance: Maximum variance in the y-axis (default ±10 pixels).
+        Returns:
+            A Point representing the destination just outside the left side of the rectangle.
+        """
+        x = self.left - x_offset  # Moves outside the left edge
+        y_center = self.top + self.height // 2
+        y = y_center + np.random.randint(-y_variance, y_variance)
+        print(f"from rec: x: {x}, y: {y}")
+        return Point(x, y)
+
 
     def to_dict(self):
         return {
@@ -436,6 +452,23 @@ class RuneLiteObject:
         y = int(center_y + radius * np.sin(angle))
         return Point(x, y)
 
+    def point_left_outside(self, x_offset: int = random.randint(10, 30), y_variance: int = random.randint(1, 10)) -> Point:
+        """
+        Returns a point just outside the left side of the object with randomness in the y-axis.
+        Args:
+            x_offset: Offset outside the left edge (default 5 pixels).
+            y_variance: Maximum variance in the y-axis (default ±10 pixels).
+        Returns:
+            A Point representing the destination just outside the left side of the object.
+        """
+        if self.rect is None:
+            raise ReferenceError("The RuneLiteObject is missing a reference to the Rectangle it's contained in.")
+
+        x = self._x_min + self.rect.left - x_offset  # Moves outside the left edge
+        y_center = self._center[1] + self.rect.top
+        y = y_center + np.random.randint(-y_variance, y_variance)
+        print(f"from runelite obj: x: {x}, y: {y}")
+        return Point(x, y)
 
     def print_properties(self):
         """
